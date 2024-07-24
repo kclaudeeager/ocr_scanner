@@ -1,7 +1,7 @@
 version: "Apple Swift version 5.10 (swiftlang-5.10.0.13 clang-1500.3.9.4)"
-options: "dc2137f5d73b1c8781ab30f5a60a35f69c78ddbf8f045457e53ba8d80a6e4983"
-build_start_time: [1721816647, 228108000]
-build_end_time: [1721816657, 133174000]
+options: "0b2587e372e35947746f8a9bfa6ef19f1d19a347aa65fad69568a139bcd770a6"
+build_start_time: [1721827851, 178376000]
+build_end_time: [1721827856, 235744000]
 inputs:
   "/Users/claudekwizera/Documents/GitHub/OCR_Scanner/ios/Runner/AppDelegate.swift": [1717405587, 964394493]
   ? "/Users/claudekwizera/Documents/GitHub/OCR_Scanner/ios/build/Runner.build/Release-iphoneos/Runner.build/DerivedSources/GeneratedAssetSymbols.swift"

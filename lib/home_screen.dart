@@ -6,7 +6,7 @@ import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:ocr_scanner/image_preview.dart';
-import 'package:pdf_text/pdf_text.dart';
+import 'package:syncfusion_flutter_pdf/pdf.dart' as syncfusion;
 
 
 class HomeScreen extends StatefulWidget {
@@ -68,24 +68,15 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      final document = await PDFDoc.fromPath(path);
+      File file = File(path);
 
-      // Initialize an empty string for the extracted text
-      String extractedText = "";
-
-      // Loop through all pages in the PDF
-      for (int i = 0; i < document.pages.length; i++) {
-        final page = await document.pages[i];
-
-        // Extract text from the page
-        final text = await page.text;
-
-        // Append the text to the extractedText string
-        extractedText += text + "\n";
-      }
+      Uint8List bytes = await file.readAsBytes();
+      final syncfusion.PdfDocument document = syncfusion.PdfDocument(inputBytes: bytes);
+      String content = syncfusion.PdfTextExtractor(document).extractText();
+      document.dispose();
 
       // Set the recognized text
-      recognizedText = extractedText;
+      recognizedText = content;
 
     } catch (e) {
       if (!mounted) {
