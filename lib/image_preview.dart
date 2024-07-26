@@ -4,10 +4,10 @@ import 'package:flutter/material.dart';
 class ImagePreview extends StatelessWidget {
   const ImagePreview({
     Key? key,
-    required this.imagePath,
+    required this.imagePaths,
   }) : super(key: key);
 
-  final String? imagePath;
+  final List<String> imagePaths;
 
   @override
   Widget build(BuildContext context) {
@@ -26,18 +26,27 @@ class ImagePreview extends StatelessWidget {
           ),
         ],
       ),
-      child: imagePath == null
+      child: imagePaths.isEmpty
           ? const Center(
         child: Text(
-          "No image selected",
+          "No images selected",
           style: TextStyle(
             fontWeight: FontWeight.bold,
           ),
         ),
       )
-          : Image.file(
-        File(imagePath!),
-        fit: BoxFit.contain,
+          : ListView.builder(
+        scrollDirection: Axis.vertical,
+        itemCount: imagePaths.length,
+        itemBuilder: (context, index) {
+          return Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Image.file(
+              File(imagePaths[index]),
+              fit: BoxFit.contain,
+            ),
+          );
+        },
       ),
     );
   }

@@ -6,9 +6,11 @@ import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:ocr_scanner/image_preview.dart';
-import 'package:syncfusion_flutter_pdf/pdf.dart' as syncfusion;
-
-
+// import 'package:pdf_text/pdf_text.dart';
+// import 'package:pdfx/pdfx.dart';
+import 'package:path_provider/path_provider.dart';
+// import 'package:pdfrx/pdfrx.dart' as pdf_render;
+import 'package:pdf_image_renderer/pdf_image_renderer.dart';
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -20,8 +22,9 @@ class _HomeScreenState extends State<HomeScreen> {
   late TextRecognizer textRecognizer;
   late ImagePicker imagePicker;
 
-  String? pickedImagePath;
+  List<String> pickedImagePaths = [];
   String recognizedText = "";
+  String importantInformation = "";
 
   bool isRecognizing = false;
 
@@ -39,7 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (isFile) {
       FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: isPdf ? ['pdf'] : ['jpg', 'jpeg', 'png', 'bmp', 'gif', 'webp','heic'],
+        allowedExtensions: isPdf ? ['pdf'] : ['jpg', 'jpeg', 'png', 'bmp', 'gif', 'webp', 'heic'],
       );
       if (result != null && result.files.single.path != null) {
         path = result.files.single.path;
@@ -60,25 +63,137 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void extractReceiptInformation(String text) {
+    debugPrint('Extracting receipt information');
+    debugPrint("Text: $text");
+    importantInformation = "";
+
+    // Combine lines that should be together
+    text = text.replaceAll('\n\n', '\n').replaceAll(' \n', ' ').replaceAll('\n ', ' ');
+
+    // Define refined regex patterns
+    RegExp datePattern = RegExp(r'\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b');
+    RegExp amountPattern = RegExp(r'\b\d{1,3}(?:,\d{3})*(?:\.\d{2})?\b');
+    RegExp itemPattern = RegExp(r'\b\d+\s+\w+.*?\s+\$\d+\.\d{2}\b');
+    RegExp addressPattern = RegExp(r'\d+\s+\w+(\s+\w+)+,\s*\w+,\s*\w{2}\s*\d{5}');
+    RegExp emailPattern = RegExp(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b');
+    RegExp phonePattern = RegExp(r'\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}|\d{3}\s+\d{3}\s+\d{4}');
+
+    // Find all matches
+    Iterable<Match> dates = datePattern.allMatches(text);
+    Iterable<Match> amounts = amountPattern.allMatches(text);
+    Iterable<Match> items = itemPattern.allMatches(text);
+    Iterable<Match> addresses = addressPattern.allMatches(text);
+    Iterable<Match> emails = emailPattern.allMatches(text);
+    Iterable<Match> phones = phonePattern.allMatches(text);
+
+    // Extract matched values
+    List<String> extractedDates = dates.map((match) => match.group(0)!).toList();
+    List<String> extractedAmounts = amounts.map((match) => match.group(0)!).toList();
+    List<String> extractedItems = items.map((match) => match.group(0)!).toList();
+    List<String> extractedAddresses = addresses.map((match) => match.group(0)!).toList();
+    List<String> extractedEmails = emails.map((match) => match.group(0)!).toList();
+    List<String> extractedPhones = phones.map((match) => match.group(0)!).toList();
+
+    // Create the extracted information string
+    String extractedInformation = 'Extracted Dates: $extractedDates\n'
+        'Extracted Amounts: $extractedAmounts\n'
+        'Extracted Items: $extractedItems\n'
+        'Extracted Addresses: $extractedAddresses\n'
+        'Extracted Emails: $extractedEmails\n'
+        'Extracted Phones: $extractedPhones\n';
+    debugPrint(extractedInformation);
+    importantInformation = extractedInformation;
+  }
+
+
+  Future<List<Uint8List>> renderPages(String path) async {
+    List<Uint8List> images = [];
+    PdfImageRendererPdf? pdf;
+
+    try {
+      pdf = PdfImageRendererPdf(path: path);
+      await pdf.open();
+    } catch (e) {
+      debugPrint("Failed to open PDF: $e");
+      return images;
+    }
+
+    try {
+      int? pages = await pdf.getPageCount();
+      debugPrint("Number of pages: $pages");
+
+      for (int i = 0; i < pages!; i++) {
+        try {
+          await pdf.openPage(pageIndex: i);
+          PdfImageRendererPageSize? size = await pdf.getPageSize(pageIndex: i);
+          int x = 0;
+          int y = 0;
+          int width = size?.width ?? 1000;
+          int height = size?.height ?? 1000;
+          Uint8List? image = await pdf.renderPage(
+            pageIndex: i,
+            x: x,
+            y: y,
+            width: width,
+            height: height,
+            scale: 3,
+            background: Colors.white,
+          );
+
+          if (image != null) {
+            images.add(image);
+          }
+
+          await pdf.closePage(pageIndex: i);
+        } catch (e) {
+          debugPrint("Error rendering page $i: $e");
+        }
+      }
+    } finally {
+      await pdf.close();
+    }
+
+    return images;
+  }
 
   Future<void> _processPdf(String path) async {
     setState(() {
-      pickedImagePath = null;
+      pickedImagePaths = [];
       isRecognizing = true;
     });
 
     try {
-      File file = File(path);
 
-      Uint8List bytes = await file.readAsBytes();
-      final syncfusion.PdfDocument document = syncfusion.PdfDocument(inputBytes: bytes);
-      String content = syncfusion.PdfTextExtractor(document).extractText();
-      document.dispose();
+        recognizedText = "";
+        importantInformation = "";
 
-      // Set the recognized text
-      recognizedText = content;
+         List<Uint8List> images = await renderPages(path);
+        final Directory appDocDir = await getApplicationDocumentsDirectory();
+        for (Uint8List image in images) {
 
+          // create the temp image file
+          final tempFile = File("${appDocDir.path}/temp_${DateTime.now().millisecondsSinceEpoch}.jpg");
+          await tempFile.writeAsBytes(image);
+
+          // process the image
+          final inputImage = InputImage.fromFilePath(tempFile.path);
+          pickedImagePaths.add(tempFile.path);
+          final RecognizedText recognisedText = await textRecognizer.processImage(inputImage);
+          //tempFile.delete();
+          for (TextBlock block in recognisedText.blocks) {
+            // debugPrint("Block: ${block.text}");
+            for (TextLine line in block.lines) {
+              recognizedText += "${line.text}\n";
+            }
+          }
+        }
+      //}
+
+
+      textRecognizer.close();
     } catch (e) {
+      debugPrint('Error extracting text from PDF: $e');
       if (!mounted) {
         return;
       }
@@ -95,11 +210,9 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-
-
   Future<void> _processImage(String path) async {
     setState(() {
-      pickedImagePath = path;
+      pickedImagePaths = [path];
       isRecognizing = true;
     });
 
@@ -108,12 +221,16 @@ class _HomeScreenState extends State<HomeScreen> {
       final RecognizedText recognisedText = await textRecognizer.processImage(inputImage);
 
       recognizedText = "";
+      importantInformation = "";
 
       for (TextBlock block in recognisedText.blocks) {
         for (TextLine line in block.lines) {
           recognizedText += "${line.text}\n";
         }
       }
+
+      // Replace multiple spaces with a single space
+      // recognizedText = recognizedText.replaceAll(RegExp(r'\s+'), ' ');
     } catch (e) {
       if (!mounted) {
         return;
@@ -205,7 +322,7 @@ class _HomeScreenState extends State<HomeScreen> {
           children: <Widget>[
             Padding(
               padding: const EdgeInsets.all(16.0),
-              child: ImagePreview(imagePath: pickedImagePath),
+              child: ImagePreview(imagePaths: pickedImagePaths),
             ),
             ElevatedButton(
               onPressed: isRecognizing ? null : _chooseImageSourceModal,
@@ -214,7 +331,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   const Text('Pick an image or PDF'),
                   if (isRecognizing) ...[
-                    const SizedBox(width: 20),
+                    const SizedBox(width: 8),
                     const SizedBox(
                       width: 16,
                       height: 16,
@@ -272,6 +389,38 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ],
+            if (!isRecognizing && recognizedText.isNotEmpty && importantInformation.isEmpty ) ...[
+              ElevatedButton(
+                onPressed: () {
+                  extractReceiptInformation(recognizedText);
+                },
+                child: recognizedText.isNotEmpty ? const Text('Extract Receipt Information') : null,
+              ),
+            ],
+            if (!isRecognizing && recognizedText.isNotEmpty && importantInformation.isNotEmpty) ...[
+              ElevatedButton(
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) {
+                      return AlertDialog(
+                        title: const Text('Important Information'),
+                        content: Text(importantInformation),
+                        actions: <Widget>[
+                          TextButton(
+                            onPressed: () {
+                              Navigator.pop(context);
+                            },
+                            child: const Text('Close'),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                },
+                child: importantInformation.isNotEmpty ? const Text('Show Extracted Information') : null,
+              ),
+            ]
           ],
         ),
       ),
