@@ -50,6 +50,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver  {
     }
   }
   Future<void> _clearTempFiles() async {
+    pickedImagePaths =  [];
     final Directory appDocDir = await getApplicationDocumentsDirectory();
     final Directory tempDir = Directory('${appDocDir.path}/temp_images');
     if (await tempDir.exists()) {
@@ -214,7 +215,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver  {
           }
         }
       //}
-
 
       textRecognizer.close();
     } catch (e) {
