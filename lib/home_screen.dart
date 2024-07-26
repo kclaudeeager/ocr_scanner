@@ -18,7 +18,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver  {
   late TextRecognizer textRecognizer;
   late ImagePicker imagePicker;
 
@@ -34,6 +34,27 @@ class _HomeScreenState extends State<HomeScreen> {
 
     textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
     imagePicker = ImagePicker();
+    WidgetsBinding.instance.addObserver(this);
+  }
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _clearTempFiles();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.detached || state == AppLifecycleState.inactive) {
+      _clearTempFiles();
+    }
+  }
+  Future<void> _clearTempFiles() async {
+    final Directory appDocDir = await getApplicationDocumentsDirectory();
+    final Directory tempDir = Directory('${appDocDir.path}/temp_images');
+    if (await tempDir.exists()) {
+      tempDir.deleteSync(recursive: true);
+    }
   }
 
   void _pickImageAndProcess({required ImageSource? source, bool isFile = false, bool isPdf = false}) async {
@@ -170,10 +191,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
          List<Uint8List> images = await renderPages(path);
         final Directory appDocDir = await getApplicationDocumentsDirectory();
+        final Directory tempDir = Directory('${appDocDir.path}/temp_images');
+        if (!await tempDir.exists()) {
+          await tempDir.create();
+        }
         for (Uint8List image in images) {
 
           // create the temp image file
-          final tempFile = File("${appDocDir.path}/temp_${DateTime.now().millisecondsSinceEpoch}.jpg");
+          final tempFile = File("${tempDir.path}/temp_${DateTime.now().millisecondsSinceEpoch}.jpg");
           await tempFile.writeAsBytes(image);
 
           // process the image
@@ -215,6 +240,7 @@ class _HomeScreenState extends State<HomeScreen> {
       pickedImagePaths = [path];
       isRecognizing = true;
     });
+
 
     try {
       final inputImage = InputImage.fromFilePath(path);
