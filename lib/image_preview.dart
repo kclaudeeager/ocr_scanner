@@ -5,9 +5,11 @@ class ImagePreview extends StatelessWidget {
   const ImagePreview({
     Key? key,
     required this.imagePaths,
+    required this.focusOnImage,
   }) : super(key: key);
 
   final List<String> imagePaths;
+  final void Function(String) focusOnImage;
 
   @override
   Widget build(BuildContext context) {
@@ -28,26 +30,32 @@ class ImagePreview extends StatelessWidget {
       ),
       child: imagePaths.isEmpty
           ? const Center(
-        child: Text(
-          "No images selected",
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      )
+              child: Text(
+                "No images selected",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            )
           : ListView.builder(
-        scrollDirection: Axis.vertical,
-        itemCount: imagePaths.length,
-        itemBuilder: (context, index) {
-          return Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Image.file(
-              File(imagePaths[index]),
-              fit: BoxFit.contain,
+              scrollDirection: Axis.vertical,
+              physics: const BouncingScrollPhysics(),
+              itemCount: imagePaths.length,
+              itemBuilder: (context, index) {
+                return GestureDetector(
+                  onTap: () {
+                    focusOnImage(imagePaths[index]);
+                  },
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Image.file(
+                      File(imagePaths[index]),
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                );
+              },
             ),
-          );
-        },
-      ),
     );
   }
 }

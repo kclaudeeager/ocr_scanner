@@ -3,6 +3,7 @@ plugins {
     id "kotlin-android"
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id "dev.flutter.flutter-gradle-plugin"
+    id "com.ahasbini.android-opencv-gradle-plugin"
 }
 
 def localProperties = new Properties()
@@ -51,6 +52,9 @@ android {
             signingConfig = signingConfigs.debug
         }
     }
+}
+androidOpenCV {
+    version '4.9.0'
 }
 
 flutter {
